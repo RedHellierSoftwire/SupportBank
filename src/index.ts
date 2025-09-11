@@ -2,7 +2,7 @@ import fs from 'fs';
 import * as csv from '@fast-csv/parse';
 import * as readline from 'readline-sync';
 import log4js from 'log4js';
-import { format, parse } from 'date-fns';
+import { format, isValid, parse } from 'date-fns';
 
 log4js.configure({
     appenders: {
@@ -18,14 +18,23 @@ const logger = log4js.getLogger();
 // MAIN FUNCTIONS
 
 const getData = (fileName: string): void => {
+
+    // Start rowNumber from 2 to account for headers row - purely for logging purposes
+    let rowNumber = 2;
+
      fs.createReadStream(`./src/lib/CSV/${fileName}`)
         .pipe(csv.parse({ headers: headers => headers.map(header => header?.toLowerCase()) }))
         .on('error', error => console.error(error))
         .on('data', (row: CSVRowData) => {
             const data = parseCSVRowData(row);
-            const newTransaction = new Transaction(data)
-            getOrCreateAccount(data.from).addTransaction(newTransaction);
-            getOrCreateAccount(data.to).addTransaction(newTransaction);
+            if (typeof data === "string") {
+                logger.debug(`Invalid Data on row ${rowNumber} - ${data}`);
+            } else {
+                const newTransaction = new Transaction(data)
+                getOrCreateAccount(data.from).addTransaction(newTransaction);
+                getOrCreateAccount(data.to).addTransaction(newTransaction);
+            }
+            rowNumber++;
         })
         .on('end', () => {
             // Update all balances
@@ -199,10 +208,10 @@ const getOrCreateAccount = (accountName: string): Account => {
 /**
  * Parses date to a Date object and amount to a Number
  * @param CSVRowData 
- * @returns Parsed RowData
+ * @returns Parsed RowData OR false if data cannot be parsed
  */
-const parseCSVRowData = ({ date, from, to, narrative, amount}: CSVRowData): RowData => {
-    const parsedData = { 
+const parseCSVRowData = ({ date, from, to, narrative, amount}: CSVRowData): RowData | string => {
+    const parsedData = {
         date: parse(date, "dd/MM/yyyy", new Date()),
         from,
         to,
@@ -210,8 +219,8 @@ const parseCSVRowData = ({ date, from, to, narrative, amount}: CSVRowData): RowD
         amount: Number(amount)
     };
 
-    logger.debug(parsedData)
-    if (isNaN(parsedData.amount)) { logger.debug(`${amount} is NaN`);}
+    if (!isValid(parsedData.date)) { return `${date} is not a valid Date`; }
+    if (isNaN(parsedData.amount)) { return `${amount} is not a valid amount`; }
 
     return parsedData;
 }
