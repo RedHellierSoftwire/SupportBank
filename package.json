@@ -3,8 +3,10 @@
   "version": "1.0.0",
   "description": "",
   "main": "src/index.ts",
+  "type": "module",
   "scripts": {
-    "start": "tsc && node dist/index.js"
+    "start": "tsc && node dist/index.js",
+    "check": "tsc"
   },
   "author": "",
   "license": "ISC",
@@ -13,6 +15,9 @@
     "typescript": "^5.9.2"
   },
   "dependencies": {
-    "fast-csv": "^5.0.5"
-  }
+    "date-fns": "^4.1.0",
+    "fast-csv": "^5.0.5",
+    "readline-sync": "^1.4.10"
+  },
+  "keywords": []
 }
