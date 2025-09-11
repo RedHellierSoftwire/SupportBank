@@ -65,8 +65,6 @@ const promptUser = (): string => {
     const queryCommand = queryArray[0];
     const queryParam = queryArray.slice(1).join(" ")
 
-    console.log(queryCommand + " " + queryParam)
-
     /* 
         If query is "List All" list all accounts
         If query is "List [Account Name]" AND account exists, list all transactions
@@ -74,7 +72,6 @@ const promptUser = (): string => {
         If query is "Exit", exit system
         If none of the above, display unrecognised prompt error
     */ 
-
     if (queryCommand === "list" || queryCommand === "l") {
         if (queryParam === "all" || queryParam === "a") {
             listAccounts();
@@ -182,7 +179,7 @@ class Account {
     }
 
     toString() {
-        return this.name + (this.balance >= 0 ? " is owed " : " owes ") + "£" + Math.abs(this.balance);
+        return `${this.name} ${this.balance >= 0 ? "is owed" : "owes"} £${Math.abs(this.balance)}`;
     }
 }
 
