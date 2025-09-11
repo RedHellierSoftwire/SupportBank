@@ -19,6 +19,8 @@ const logger = log4js.getLogger();
 
 const getData = (fileName: string): void => {
 
+    logger.debug("Started Reading CSV File")
+
     // Start rowNumber from 2 to account for headers row - purely for logging purposes
     let rowNumber = 2;
 
@@ -28,7 +30,7 @@ const getData = (fileName: string): void => {
         .on('data', (row: CSVRowData) => {
             const data = parseCSVRowData(row);
             if (typeof data === "string") {
-                logger.debug(`Invalid Data on row ${rowNumber} - ${data}`);
+                logger.error(`Invalid Data on row ${rowNumber} - ${data}`);
             } else {
                 const newTransaction = new Transaction(data)
                 getOrCreateAccount(data.from).addTransaction(newTransaction);
@@ -37,6 +39,7 @@ const getData = (fileName: string): void => {
             rowNumber++;
         })
         .on('end', () => {
+            logger.debug("Finished Reading CSV File")
             // Update all balances
             accounts.forEach(account => {
                 account.calculateBalance()
