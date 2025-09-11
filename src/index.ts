@@ -1,7 +1,19 @@
-import * as fs from 'fs';
+import fs from 'fs';
 import * as csv from '@fast-csv/parse';
-import * as readline from 'readline-sync'
+import * as readline from 'readline-sync';
+import log4js from 'log4js';
 import { format, parse } from 'date-fns';
+
+log4js.configure({
+    appenders: {
+        file: { type: 'fileSync', filename: 'logs/debug.log' }
+    },
+    categories: {
+        default: { appenders: ['file'], level: 'debug'}
+    }
+});
+
+const logger = log4js.getLogger();
 
 // MAIN FUNCTIONS
 
@@ -38,6 +50,10 @@ const promptUser = (): string => {
     const query = readline.question("Please enter your query: ").toLowerCase();
     console.log();
     const queryArray = query.split(" ");
+    const queryCommand = queryArray[0];
+    const queryParam = queryArray.slice(1).join(" ")
+
+    console.log(queryCommand + " " + queryParam)
 
     /* 
         If query is "List All" list all accounts
@@ -46,17 +62,19 @@ const promptUser = (): string => {
         If query is "Exit", exit system
         If none of the above, display unrecognised prompt error
     */ 
-    if (query === "list all" || query === "l a") {
-        listAccounts();
-    } else if (queryArray.length === 3 && (queryArray[0] === "list" || queryArray[0] === "l")) {
-        const accountName: string = "" + queryArray.at(1)?.charAt(0).toUpperCase() + queryArray.at(1)?.slice(1) + " " + queryArray[2]?.toUpperCase();
-        if (doesAccountExist(accountName)) {
-            getOrCreateAccount(accountName).printTransactions();
+
+    if (queryCommand === "list" || queryCommand === "l") {
+        if (queryParam === "all" || queryParam === "a") {
+            listAccounts();
         } else {
-            console.log(`No Account found for ${accountName}`);
+            if (doesAccountExist(queryParam)) {
+                getOrCreateAccount(queryParam).printTransactions();
+            } else {
+                console.log(`No Account found for ${queryParam}`);
+            }
         }
-    } else if (query === "exit") {
-        return "System Shut Down"
+    } else if (queryCommand === "exit" || queryCommand === "e") {
+        return "System Shutting Down"
     } else {
         console.log(`${query} is not a recognised query`);
     }
@@ -159,7 +177,7 @@ class Account {
 // UTIL FUNCTIONS
 
 const doesAccountExist = (accountName: string): boolean => {
-    return accounts.find(account => { return account.name === accountName }) !== undefined;
+    return accounts.find(account => { return account.name.toLowerCase() === accountName.toLowerCase() }) !== undefined;
 }
 
 /**
@@ -168,7 +186,7 @@ const doesAccountExist = (accountName: string): boolean => {
  * @returns Either the account if found OR a newly created account
  */
 const getOrCreateAccount = (accountName: string): Account => {
-    const account = accounts.find(account => { return account.name === accountName });
+    const account = accounts.find(account => { return account.name.toLowerCase() === accountName.toLowerCase() });
     if (!account) {
         const newAccount = new Account(accountName);
         accounts.push(newAccount);
@@ -184,17 +202,21 @@ const getOrCreateAccount = (accountName: string): Account => {
  * @returns Parsed RowData
  */
 const parseCSVRowData = ({ date, from, to, narrative, amount}: CSVRowData): RowData => {
-    return { 
+    const parsedData = { 
         date: parse(date, "dd/MM/yyyy", new Date()),
         from,
         to,
         narrative,
         amount: Number(amount)
     };
+
+    logger.debug(parsedData)
+    if (isNaN(parsedData.amount)) { logger.debug(`${amount} is NaN`);}
+
+    return parsedData;
 }
 
 
 // Run Script
-
 const accounts: Account[] = [];
-getData('Transactions2014.csv');
+getData('DodgyTransactions2015.csv');
