@@ -20,16 +20,14 @@ const getData = (fileName: string): void => {
                 account.calculateBalance()
             })
         });
-    
-    console.log("afterfs in getData")
 }
 
 const listAccounts = (): void => {
-    accounts.forEach(account => console.log(account.toString()))
+    accounts.forEach(account => console.log(account.toString()));
 }
 
 const listAccountTransactions = (accountName: string): void => {
-
+    getOrAddAccount(accountName).printTransactions();
 }
 
 type RowData = {
@@ -53,7 +51,10 @@ class Transaction {
         this.to = data.To;
         this.narrative = data.Narrative;
         this.amount = Number(data.Amount);
+    }
 
+    toString() {
+        return `£${this.amount} for ${this.narrative} on ${this.date}`;
     }
 }
 
@@ -78,6 +79,19 @@ class Account {
 
     addTransaction(transaction: Transaction): void {
         this.transactions.push(transaction);
+    }
+
+    printTransactions(): void {
+        this.transactions.forEach(transaction => {
+            let outputString;
+            if (transaction.to === this.name) {
+                outputString = `(+) Was Paid by ${transaction.from} `
+            } else if (transaction.from === this.name) {
+                outputString = `(-) Paid ${transaction.from} `
+            }
+            outputString += transaction.toString();
+            console.log(outputString);
+        })
     }
 
     calculateBalance(): void {
