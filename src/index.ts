@@ -1,19 +1,19 @@
 import * as fs from 'fs';
 import * as csv from '@fast-csv/parse';
 import * as readline from 'readline-sync'
-import { format } from 'date-fns';
-import { enGB } from 'date-fns/locale';
+import { format, parse } from 'date-fns';
 
 
 const getData = (fileName: string): void => {
      fs.createReadStream(`./src/lib/CSV/${fileName}`)
-        .pipe(csv.parse({ headers: true }))
+        .pipe(csv.parse({ headers: headers => headers.map(header => header?.toLowerCase()) }))
         .on('error', error => console.error(error))
-        .on('data', (row: RowData) => {
-            const newTransaction = new Transaction(row)
+        .on('data', (row: CSVRowData) => {
+            const data = parseCSVRowData(row);
+            const newTransaction = new Transaction(data)
             transactions.push(newTransaction)
-            getOrAddAccount(row.From).addTransaction(newTransaction);
-            getOrAddAccount(row.To).addTransaction(newTransaction);
+            getOrCreateAccount(data.from).addTransaction(newTransaction);
+            getOrCreateAccount(data.to).addTransaction(newTransaction);
         })
         .on('end', () => {
             accounts.forEach(account => {
@@ -27,34 +27,42 @@ const listAccounts = (): void => {
 }
 
 const listAccountTransactions = (accountName: string): void => {
-    getOrAddAccount(accountName).printTransactions();
+    getOrCreateAccount(accountName).printTransactions();
+}
+
+type CSVRowData = {
+    date: string;
+    from: string;
+    to: string;
+    narrative: string;
+    amount: string;
 }
 
 type RowData = {
-    Date: string;
-    From: string;
-    To: string;
-    Narrative: string;
-    Amount: string;
+    date: Date;
+    from: string;
+    to: string;
+    narrative: string;
+    amount: number;
 }
 
 class Transaction {
-    date: string;
+    date: Date;
     from: string;
     to: string;
     narrative: string;
     amount: number;
 
-    constructor(data: RowData) {
-        this.date = format(data.Date, "MM/dd/yyyy", { locale: enGB });
-        this.from = data.From;
-        this.to = data.To;
-        this.narrative = data.Narrative;
-        this.amount = Number(data.Amount);
+    constructor({ date, from, to, narrative, amount }: RowData) {
+        this.date = date;
+        this.from = from;
+        this.to = to;
+        this.narrative = narrative;
+        this.amount = amount;
     }
 
     toString() {
-        return `£${this.amount} for ${this.narrative} on ${this.date}`;
+        return `£${this.amount} for ${this.narrative} on the ${format(this.date, "do MM yyyy")}`;
     }
 }
 
@@ -114,7 +122,7 @@ class Account {
  * @param accountName
  * @returns Either the account if found OR a newly created account
  */
-const getOrAddAccount = (accountName: string): Account => {
+const getOrCreateAccount = (accountName: string): Account => {
     const account = accounts.find(account => { return account.name === accountName });
     if (!account) {
         const newAccount = new Account(accountName);
@@ -125,9 +133,22 @@ const getOrAddAccount = (accountName: string): Account => {
     return account;
 }
 
-const transactions: Array<Transaction> = [];
-const accounts: Array<Account> = [];
+/**
+ * Parses date to a Date object and amount to a Number
+ * @param CSVRowData 
+ * @returns Parsed RowData
+ */
+const parseCSVRowData = ({ date, from, to, narrative, amount}: CSVRowData): RowData => {
+    return { 
+        date: parse(date, "dd/MM/yyyy", new Date()),
+        from,
+        to,
+        narrative,
+        amount: Number(amount)
+    };
+}
+
+const transactions: Transaction[] = [];
+const accounts: Account[] = [];
 
 getData('Transactions2014.csv');
-console.log(accounts.length)
-listAccounts();
