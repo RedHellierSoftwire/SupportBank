@@ -3,6 +3,7 @@ import * as csv from '@fast-csv/parse';
 import * as readline from 'readline-sync';
 import log4js from 'log4js';
 import { format, isValid, parse } from 'date-fns';
+import { convertPenceToPounds, convertPoundsToPence } from './lib/utils/poundsPenceConverter.js';
 
 log4js.configure({
     appenders: {
@@ -143,11 +144,13 @@ class Account {
     }
 
     addBalance(transactionAmount: number) : void {
-        this.balance += transactionAmount;
+
+        this.balance += convertPoundsToPence(transactionAmount);
+        
     }
 
     deductBalance(transactionAmount: number): void {
-        this.balance -= transactionAmount;
+        this.balance -= convertPoundsToPence(transactionAmount);
     }
 
     addTransaction(transaction: Transaction): void {
