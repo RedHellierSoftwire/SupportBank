@@ -2,6 +2,7 @@ import fs from 'fs';
 import * as csv from '@fast-csv/parse';
 import * as readline from 'readline-sync';
 import log4js from 'log4js';
+import JSONStream from 'JSONStream';
 import { format, isValid, parse } from 'date-fns';
 
 log4js.configure({
@@ -46,6 +47,40 @@ const getData = (fileName: string): void => {
             })
             // Start System
             console.log(promptUser());
+        });
+}
+
+const getJSONData = (fileName: string): void => {
+
+    logger.debug(`Started Reading File: ./src/lib/JSON/${fileName}`)
+
+    // Start rowNumber from 2 to account for headers row - purely for logging purposes
+    let rowNumber = 2;
+
+     fs.createReadStream(`./src/lib/JSON/${fileName}`)
+        .pipe(JSONStream.parse('*'))
+        .on('error', error => console.error(error))
+        .on('data', (row) => {
+            console.log(row);
+            const data = parseCSVRowData(row);
+            if (typeof data === "string") {
+                logger.error(`Invalid Data on row ${rowNumber} - ${data}`);
+            } else {
+                const newTransaction = new Transaction(data)
+                getOrCreateAccount(data.from).addTransaction(newTransaction);
+                getOrCreateAccount(data.to).addTransaction(newTransaction);
+            }
+            rowNumber++;
+        })
+        .on('end', () => {
+            logger.debug("Finished Reading File")
+            console.log(rowNumber);
+            // Update all balances
+            accounts.forEach(account => {
+                account.calculateBalance()
+            })
+            // Start System
+            // console.log(promptUser());
         });
 }
 
@@ -228,4 +263,4 @@ const parseCSVRowData = ({ date, from, to, narrative, amount}: CSVRowData): RowD
 
 // Run Script
 const accounts: Account[] = [];
-getData('DodgyTransactions2015.csv');
+getJSONData('Transactions2013.json');
