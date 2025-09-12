@@ -3,6 +3,9 @@ import * as csv from '@fast-csv/parse';
 import * as readline from 'readline-sync';
 import log4js from 'log4js';
 import { format, isValid, parse } from 'date-fns';
+import AccountManager from './lib/utils/classes/AccountManager.js';
+import readData from './lib/utils/fileReader.js';
+import runSystem from './lib/utils/userSystem.js';
 
 log4js.configure({
     appenders: {
@@ -229,3 +232,9 @@ const parseCSVRowData = ({ date, from, to, narrative, amount}: CSVRowData): RowD
 // Run Script
 const accounts: Account[] = [];
 getData('DodgyTransactions2015.csv');
+
+const supportBank = new AccountManager();
+readData('DodgyTransactions2015.csv',supportBank)
+    .then(supportBankWithData => {
+        runSystem(supportBankWithData);
+    })

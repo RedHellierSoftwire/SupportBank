@@ -13,3 +13,8 @@ export type RowData = {
     narrative: string;
     amount: number;
 }
+
+export type ParseResponse = {
+    data: RowData | null;
+    error: string | null;
+}

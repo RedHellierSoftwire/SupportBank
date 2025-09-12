@@ -1,7 +1,7 @@
 import * as readline from 'readline-sync';
 import AccountManager from './classes/AccountManager.js'
 
-export const promptUser = (accountManager: AccountManager): string => {
+const runSystem = (accountManager: AccountManager) => {
     // Ask for User Input
     console.log("What would you like to do?")
     console.log("> List All - Shows all accounts and current balances")
@@ -10,6 +10,8 @@ export const promptUser = (accountManager: AccountManager): string => {
     const query = readline.question("Please enter your query: ").toLowerCase();
     console.log();
     const queryArray = query.split(" ");
+    const queryCommand = queryArray[0];
+    const queryParam = queryArray.slice(1).join(" ")
 
     /* 
         If query is "List All" list all accounts
@@ -18,22 +20,26 @@ export const promptUser = (accountManager: AccountManager): string => {
         If query is "Exit", exit system
         If none of the above, display unrecognised prompt error
     */ 
-    if (query === "list all" || query === "l a") {
-        accountManager.listAccounts();
-    } else if (queryArray.length === 3 && (queryArray[0] === "list" || queryArray[0] === "l")) {
-        const accountName: string = "" + queryArray.at(1)?.charAt(0).toUpperCase() + queryArray.at(1)?.slice(1) + " " + queryArray[2]?.toUpperCase();
-        if (accountManager.doesAccountExist(accountName)) {
-            accountManager.getAccount(accountName)?.printTransactions();
+    if (queryCommand === "list" || queryCommand === "l") {
+        if (queryParam === "all" || queryParam === "a") {
+            accountManager.listAccounts();
         } else {
-            console.log(`No Account found for ${accountName}`);
+            if (accountManager.doesAccountExist(queryParam)) {
+                accountManager.getAccount(queryParam)?.printTransactions();
+            } else {
+                console.log(`No Account found for ${queryParam}`);
+            }
         }
-    } else if (query === "exit") {
-        return "System Shut Down"
+    } else if (queryCommand === "exit" || queryCommand === "e") {
+        console.log("System Shutting Down")
+        return
     } else {
         console.log(`${query} is not a recognised query`);
     }
 
     readline.question("")
     console.log()
-    return promptUser(accountManager);
+    return runSystem(accountManager);
 }
+
+export default runSystem;
