@@ -3,7 +3,7 @@ import * as csv from '@fast-csv/parse';
 import * as readline from 'readline-sync';
 import log4js from 'log4js';
 import JSONStream from 'JSONStream';
-import { format, isValid, parse } from 'date-fns';
+import { format, isValid, parse, parseISO } from 'date-fns';
 
 log4js.configure({
     appenders: {
@@ -60,9 +60,9 @@ const getJSONData = (fileName: string): void => {
      fs.createReadStream(`./src/lib/JSON/${fileName}`)
         .pipe(JSONStream.parse('*'))
         .on('error', error => console.error(error))
-        .on('data', (row) => {
+        .on('data', (row: JSONRowData) => {
             console.log(row);
-            const data = parseCSVRowData(row);
+            const data = parseJSONRowData(row);
             if (typeof data === "string") {
                 logger.error(`Invalid Data on row ${rowNumber} - ${data}`);
             } else {
@@ -256,6 +256,32 @@ const parseCSVRowData = ({ date, from, to, narrative, amount}: CSVRowData): RowD
 
     if (!isValid(parsedData.date)) { return `${date} is not a valid Date`; }
     if (isNaN(parsedData.amount)) { return `${amount} is not a valid amount`; }
+
+    return parsedData;
+    
+}
+
+type JSONRowData = {
+    Date: string;
+    FromAccount: string;
+    ToAccount: string;
+    Narrative: string;
+    Amount: number;
+}
+
+
+
+const parseJSONRowData = ({ Date, FromAccount, ToAccount, Narrative, Amount}: JSONRowData): RowData | string => {
+    const parsedData = {
+        date: parseISO(Date),
+        from: FromAccount,
+        to: ToAccount,
+        narrative: Narrative,
+        amount: Number(NaN)
+    };
+
+    if (!isValid(parsedData.date)) { return `${Date} is not a valid Date`; }
+    if (isNaN(parsedData.amount)) { return `${Amount} is not a valid amount`; }
 
     return parsedData;
 }
