@@ -1,21 +1,47 @@
-import * as fs from 'fs';
+import fs from 'fs';
 import * as csv from '@fast-csv/parse';
-import * as readline from 'readline-sync'
-import { format, parse } from 'date-fns';
+import * as readline from 'readline-sync';
+import _ from 'lodash';
+import log4js from 'log4js';
+import { format, isValid, parse } from 'date-fns';
+import { convertPenceToPounds, convertPoundsToPence } from './lib/utils/poundsPenceConverter.js';
+
+log4js.configure({
+    appenders: {
+        file: { type: 'fileSync', filename: 'logs/debug.log' }
+    },
+    categories: {
+        default: { appenders: ['file'], level: 'debug'}
+    }
+});
+
+const logger = log4js.getLogger();
 
 // MAIN FUNCTIONS
 
 const getData = (fileName: string): void => {
+
+    logger.debug("Started Reading CSV File")
+
+    // Start rowNumber from 2 to account for headers row - purely for logging purposes
+    let rowNumber = 2;
+
      fs.createReadStream(`./src/lib/CSV/${fileName}`)
         .pipe(csv.parse({ headers: headers => headers.map(header => header?.toLowerCase()) }))
         .on('error', error => console.error(error))
         .on('data', (row: CSVRowData) => {
-            const data = parseCSVRowData(row);
-            const newTransaction = new Transaction(data)
-            getOrCreateAccount(data.from).addTransaction(newTransaction);
-            getOrCreateAccount(data.to).addTransaction(newTransaction);
+            try {
+                const data = parseCSVRowData(row);
+                const newTransaction = new Transaction(data)
+                getOrCreateAccount(data.from).addTransaction(newTransaction);
+                getOrCreateAccount(data.to).addTransaction(newTransaction);
+            } catch (error: any) {
+                logger.error(`Invalid Data on row ${rowNumber} - ${error.message}`);
+            }
+            rowNumber++;
         })
         .on('end', () => {
+            logger.debug("Finished Reading CSV File")
             // Update all balances
             accounts.forEach(account => {
                 account.calculateBalance()
@@ -38,6 +64,8 @@ const promptUser = (): string => {
     const query = readline.question("Please enter your query: ").toLowerCase();
     console.log();
     const queryArray = query.split(" ");
+    const queryCommand = queryArray[0];
+    const queryParam = queryArray.slice(1).join(" ")
 
     /* 
         If query is "List All" list all accounts
@@ -46,17 +74,18 @@ const promptUser = (): string => {
         If query is "Exit", exit system
         If none of the above, display unrecognised prompt error
     */ 
-    if (query === "list all" || query === "l a") {
-        listAccounts();
-    } else if (queryArray.length === 3 && (queryArray[0] === "list" || queryArray[0] === "l")) {
-        const accountName: string = "" + queryArray.at(1)?.charAt(0).toUpperCase() + queryArray.at(1)?.slice(1) + " " + queryArray[2]?.toUpperCase();
-        if (doesAccountExist(accountName)) {
-            getOrCreateAccount(accountName).printTransactions();
+    if (queryCommand === "list" || queryCommand === "l") {
+        if (queryParam === "all" || queryParam === "a") {
+            listAccounts();
         } else {
-            console.log(`No Account found for ${accountName}`);
+            if (doesAccountExist(queryParam)) {
+                getOrCreateAccount(queryParam).printTransactions();
+            } else {
+                console.log(`No Account found for ${queryParam}`);
+            }
         }
-    } else if (query === "exit") {
-        return "System Shut Down"
+    } else if (queryCommand === "exit" || queryCommand === "e") {
+        return "System Shutting Down"
     } else {
         console.log(`${query} is not a recognised query`);
     }
@@ -116,11 +145,13 @@ class Account {
     }
 
     addBalance(transactionAmount: number) : void {
-        this.balance += transactionAmount;
+
+        this.balance += convertPoundsToPence(transactionAmount);
+        
     }
 
     deductBalance(transactionAmount: number): void {
-        this.balance -= transactionAmount;
+        this.balance -= convertPoundsToPence(transactionAmount);
     }
 
     addTransaction(transaction: Transaction): void {
@@ -152,23 +183,19 @@ class Account {
     }
 
     toString() {
-        return this.name + (this.balance >= 0 ? " is owed " : " owes ") + "£" + Math.abs(this.balance);
+        const balanceInPounds = convertPenceToPounds(this.balance);
+        return `${this.name} ${this.balance >= 0 ? "is owed" : "owes"} £${Math.abs(balanceInPounds)}`;
     }
 }
 
 // UTIL FUNCTIONS
 
 const doesAccountExist = (accountName: string): boolean => {
-    return accounts.find(account => { return account.name === accountName }) !== undefined;
+    return _.some(accounts, account => account.name.toLowerCase() === accountName.toLowerCase());
 }
 
-/**
- * Gets the account by name, or if one does not exist, creates an account and returns that
- * @param accountName
- * @returns Either the account if found OR a newly created account
- */
 const getOrCreateAccount = (accountName: string): Account => {
-    const account = accounts.find(account => { return account.name === accountName });
+    const account = accounts.find(account => { return account.name.toLowerCase() === accountName.toLowerCase() });
     if (!account) {
         const newAccount = new Account(accountName);
         accounts.push(newAccount);
@@ -178,23 +205,27 @@ const getOrCreateAccount = (accountName: string): Account => {
     return account;
 }
 
-/**
- * Parses date to a Date object and amount to a Number
- * @param CSVRowData 
- * @returns Parsed RowData
- */
 const parseCSVRowData = ({ date, from, to, narrative, amount}: CSVRowData): RowData => {
-    return { 
+    const parsedData = {
         date: parse(date, "dd/MM/yyyy", new Date()),
         from,
         to,
         narrative,
         amount: Number(amount)
     };
+
+    if (!isValid(parsedData.date)) { 
+        throw new Error(`${date} is not a valid Date`); 
+    }
+    if (isNaN(parsedData.amount)) { 
+        throw new Error(`${amount} is not a valid amount`); 
+    }
+
+    return parsedData;
 }
 
 
 // Run Script
-
 const accounts: Account[] = [];
-getData('Transactions2014.csv');
+getData('DodgyTransactions2015.csv');
+
