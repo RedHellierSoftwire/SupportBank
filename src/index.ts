@@ -1,6 +1,7 @@
 import fs from 'fs';
 import * as csv from '@fast-csv/parse';
 import * as readline from 'readline-sync';
+import _ from 'lodash';
 import log4js from 'log4js';
 import { format, isValid, parse } from 'date-fns';
 import { convertPenceToPounds, convertPoundsToPence } from './lib/utils/poundsPenceConverter.js';
@@ -190,7 +191,7 @@ class Account {
 // UTIL FUNCTIONS
 
 const doesAccountExist = (accountName: string): boolean => {
-    return accounts.find(account => { return account.name.toLowerCase() === accountName.toLowerCase() }) !== undefined;
+    return _.some(accounts, account => account.name.toLowerCase() === accountName.toLowerCase());
 }
 
 const getOrCreateAccount = (accountName: string): Account => {
@@ -227,3 +228,4 @@ const parseCSVRowData = ({ date, from, to, narrative, amount}: CSVRowData): RowD
 // Run Script
 const accounts: Account[] = [];
 getData('DodgyTransactions2015.csv');
+
