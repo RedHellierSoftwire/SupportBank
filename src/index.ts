@@ -29,13 +29,13 @@ const getData = (fileName: string): void => {
         .pipe(csv.parse({ headers: headers => headers.map(header => header?.toLowerCase()) }))
         .on('error', error => console.error(error))
         .on('data', (row: CSVRowData) => {
-            const data = parseCSVRowData(row);
-            if (typeof data === "string") {
-                logger.error(`Invalid Data on row ${rowNumber} - ${data}`);
-            } else {
+            try {
+                const data = parseCSVRowData(row);
                 const newTransaction = new Transaction(data)
                 getOrCreateAccount(data.from).addTransaction(newTransaction);
                 getOrCreateAccount(data.to).addTransaction(newTransaction);
+            } catch (error: any) {
+                logger.error(`Invalid Data on row ${rowNumber} - ${error.message}`);
             }
             rowNumber++;
         })
@@ -182,7 +182,8 @@ class Account {
     }
 
     toString() {
-        return `${this.name} ${this.balance >= 0 ? "is owed" : "owes"} £${Math.abs(this.balance)}`;
+        const balanceInPounds = convertPenceToPounds(this.balance);
+        return `${this.name} ${this.balance >= 0 ? "is owed" : "owes"} £${Math.abs(balanceInPounds)}`;
     }
 }
 
@@ -192,11 +193,6 @@ const doesAccountExist = (accountName: string): boolean => {
     return accounts.find(account => { return account.name.toLowerCase() === accountName.toLowerCase() }) !== undefined;
 }
 
-/**
- * Gets the account by name, or if one does not exist, creates an account and returns that
- * @param accountName
- * @returns Either the account if found OR a newly created account
- */
 const getOrCreateAccount = (accountName: string): Account => {
     const account = accounts.find(account => { return account.name.toLowerCase() === accountName.toLowerCase() });
     if (!account) {
@@ -208,12 +204,7 @@ const getOrCreateAccount = (accountName: string): Account => {
     return account;
 }
 
-/**
- * Parses date to a Date object and amount to a Number
- * @param CSVRowData 
- * @returns Parsed RowData OR false if data cannot be parsed
- */
-const parseCSVRowData = ({ date, from, to, narrative, amount}: CSVRowData): RowData | string => {
+const parseCSVRowData = ({ date, from, to, narrative, amount}: CSVRowData): RowData => {
     const parsedData = {
         date: parse(date, "dd/MM/yyyy", new Date()),
         from,
@@ -222,8 +213,12 @@ const parseCSVRowData = ({ date, from, to, narrative, amount}: CSVRowData): RowD
         amount: Number(amount)
     };
 
-    if (!isValid(parsedData.date)) { return `${date} is not a valid Date`; }
-    if (isNaN(parsedData.amount)) { return `${amount} is not a valid amount`; }
+    if (!isValid(parsedData.date)) { 
+        throw new Error(`${date} is not a valid Date`); 
+    }
+    if (isNaN(parsedData.amount)) { 
+        throw new Error(`${amount} is not a valid amount`); 
+    }
 
     return parsedData;
 }
